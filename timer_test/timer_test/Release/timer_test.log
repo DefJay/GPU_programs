@@ -1,18 +1,21 @@
 ﻿  Compiling CUDA source file kernel.cu...
   
   C:\Users\educ\Desktop\timer_test\timer_test>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2015 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include"     --keep-dir Release -maxrregcount=0  --machine 32 --compile -cudart static     -DWIN32 -DNDEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /FS /Zi  /MD " -o Release\kernel.cu.obj "C:\Users\educ\Desktop\timer_test\timer_test\kernel.cu" 
-C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(51): warning C4067: unexpected tokens following preprocessor directive - expected a newline
-C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(51): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(52): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(65): error : expected a ";"
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(91): warning : parsing restarts here after previous syntax error
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(92): warning : statement is unreachable
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(92): error : identifier "cudaStatus" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(98): error : identifier "dev_a" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(98): error : identifier "a" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(98): error : cannot determine which instance of overloaded function "size" is intended
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(104): error : identifier "dev_b" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(104): error : identifier "b" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(104): error : cannot determine which instance of overloaded function "size" is intended
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(111): error : no suitable constructor exists to convert from "<unknown-type>" to "dim3"
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(111): error : identifier "dev_c" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(129): error : identifier "c" is undefined
+C:/Users/educ/Desktop/timer_test/timer_test/kernel.cu(129): error : cannot determine which instance of overloaded function "size" is intended
 CUDACOMPILE : nvcc warning : The 'compute_20', 'sm_20', and 'sm_21' architectures are deprecated, and may be removed in a future release (Use -Wno-deprecated-gpu-targets to suppress warning).
   kernel.cu
-  Generating code
-  0 of 2 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  Finished generating code
-  timer_test.vcxproj -> C:\Users\educ\Desktop\timer_test\Release\timer_test.exe
-  timer_test.vcxproj -> C:\Users\educ\Desktop\timer_test\Release\timer_test.pdb (Full PDB)
-  copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\cudart*.dll" "C:\Users\educ\Desktop\timer_test\Release\"
-  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\cudart32_80.dll
-  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\cudart64_80.dll
-          2 file(s) copied.
+C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\BuildCustomizations\CUDA 8.0.targets(687,9): error MSB3721: The command ""C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2015 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include"     --keep-dir Release -maxrregcount=0  --machine 32 --compile -cudart static     -DWIN32 -DNDEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /O2 /FS /Zi  /MD " -o Release\kernel.cu.obj "C:\Users\educ\Desktop\timer_test\timer_test\kernel.cu"" exited with code 2.
