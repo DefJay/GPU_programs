@@ -6,6 +6,7 @@
 #include <string>
 #include <stdlib.h>
 #include <time.h>
+#include<omp.h>
 
 
 using namespace std;
@@ -13,6 +14,7 @@ using namespace std;
 
 bool mem_alloc(int **a, int **b, int **c, int size);
 void clean_up(int *a, int *b, int *c);
+void fill_arrays(int *a, int *b, int *c, int size);
 void add_vec_serial_CPU(int * a, int * b, int * c, int size);
 
 
@@ -26,6 +28,8 @@ int main(int argc, char * argv[]) {
 
 	//set the second argument to be 1000 by default
 	int size = 1000;
+	//set the iterations to be 100 by default
+	int iter = 100;
 
 	//declare the variables
 	int *a = nullptr;
@@ -38,6 +42,13 @@ int main(int argc, char * argv[]) {
 		size = stoi(argv[1]);
 	}
 	cout << "the size of the array is: " << size << endl;
+
+	//check to see if the user added a third argument
+	//if they did, then change the size to that new argument
+	if (argc > 2) {
+		iter = stoi(argv[2]);
+	}
+	cout << "the number of iterations is: " << iter << endl;
 
 	//try to allocate the memory
 	try {
@@ -52,24 +63,28 @@ int main(int argc, char * argv[]) {
 		cout << err_message << endl;
 	}
 
-	//fill in the arrays 
-	for (int i = 0; i < size; i++) {
-		a[i] = rand() % size + 1;
-		b[i] = rand() % size + 1;
-		c[i] = 0;
+	fill_arrays(a, b, c, size);
+
+	double t = 0;
+
+
+	
+
+	htp.TimeSinceLastCall();
+	for (int i = 0; i < iter; i++) {
+		add_vec_serial_CPU(a, b, c, size);
+		t = t + htp.TimeSinceLastCall();
 	}
+		
+	t = t / iter;
+	cout << "Add vec serial CPU took:   " << t << "  seconds!" << endl;
 
-	cout << "a:  " << a[0] << endl;
-	cout << "b:  " << b[0] << endl;
-	cout << "c:  " << c[0] << endl;
-
-	cout << endl;
 
 
 
 	//add the vectors
 	//htp.TimeSinceLastCall();
-	add_vec_serial_CPU(a, b, c, size);
+	//add_vec_serial_CPU(a, b, c, size);
 	//double t = htp.TimeSinceLastCall();
 
 	//cout << "add_vec_serial took: " << t << " seconds" << endl;
@@ -119,6 +134,18 @@ void clean_up(int *a, int *b, int *c) {
 	}
 }
 
+//---------------------------------------------------------------------------
+void fill_arrays(int *a, int *b, int *c, int size) {
+	//fill in the arrays 
+	for (int i = 0; i < size; i++) {
+		a[i] = rand() % 20 + 1;
+		b[i] = rand() % 20 + 1;
+		c[i] = 0;
+	}
+}
+
+
+
 
 //---------------------------------------------------------------------------
 void add_vec_serial_CPU(int * a, int * b, int * c, int size) {
@@ -126,5 +153,4 @@ void add_vec_serial_CPU(int * a, int * b, int * c, int size) {
 	for (int i = 0; i < size; i++) {
 		c[i] = a[i] + b[i];
 	}
-	cout << c[0] << endl;
 }
