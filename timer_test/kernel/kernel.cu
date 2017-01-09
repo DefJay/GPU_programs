@@ -11,11 +11,12 @@
 
 using namespace std;
 
-
 bool mem_alloc(int **a, int **b, int **c, int size);
 void clean_up(int *a, int *b, int *c);
 void fill_arrays(int *a, int *b, int *c, int size);
 void add_vec_serial_CPU(int * a, int * b, int * c, int size);
+
+cudaError_t add_array_cuda(int *c, const int *a, const int, *b, unsigned int size);
 
 
 
@@ -82,12 +83,6 @@ int main(int argc, char * argv[]) {
 
 
 
-	//add the vectors
-	//htp.TimeSinceLastCall();
-	//add_vec_serial_CPU(a, b, c, size);
-	//double t = htp.TimeSinceLastCall();
-
-	//cout << "add_vec_serial took: " << t << " seconds" << endl;
 
 	
 	clean_up(a, b, c);
