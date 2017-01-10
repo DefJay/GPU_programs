@@ -16,7 +16,10 @@ void clean_up(int *a, int *b, int *c);
 void fill_arrays(int *a, int *b, int *c, int size);
 void add_vec_serial_CPU(int * a, int * b, int * c, int size);
 
-cudaError_t add_array_cuda(int *c, const int *a, const int, *b, unsigned int size);
+void cuda_malloc(int* cpu_a, int* cpu_b, int* cpu_c, int size);
+void cuda_add_arrays(int * c, const int *a, const int *b);
+
+int * gpu_a = nullptr;
 
 
 
@@ -79,6 +82,14 @@ int main(int argc, char * argv[]) {
 		
 	t = t / iter;
 	cout << "Add vec serial CPU took:   " << t << "  seconds!" << endl;
+
+
+	//=====================test cuda code=============================
+	cuda_malloc(a, b, c, size);
+	
+
+
+
 
 
 
@@ -148,4 +159,66 @@ void add_vec_serial_CPU(int * a, int * b, int * c, int size) {
 	for (int i = 0; i < size; i++) {
 		c[i] = a[i] + b[i];
 	}
+}
+
+
+//=========CUDA CODE===================
+//---------------------------------------------------------------------------
+void cuda_malloc(int * cpu_a, int * cpu_b, int * cpu_c, int size) {
+	cudaError cuda_status;
+
+	int * gpu_a = nullptr;
+	int * gpu_b = nullptr;
+	int * gpu_c = nullptr;
+
+	int malloc_size = size * sizeof(int);
+
+	try {
+		//choose which GPU to run on, change this on a multi-GPU system.
+		cuda_status = cudaSetDevice(0);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaSetDeice failed!");
+		}
+
+		//allocate GPU buffers for 3 arrays 
+		cuda_status = cudaMalloc((void**)&gpu_a, malloc_size);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaMalloc of array a failed!");
+		}
+		cuda_status = cudaMalloc((void**)&gpu_b, malloc_size);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaMalloc of array b failed!");
+		}
+		cuda_status = cudaMalloc((void**)&gpu_c, malloc_size);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaMalloc of array c failed!");
+		}
+
+
+		//copy the vectors over to the GPU buffers
+		//only copy over a & b cause they are the only ones with any real data
+		cuda_status = cudaMemcpy(gpu_a, cpu_a, malloc_size, cudaMemcpyHostToDevice);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaMemcpy of array a failed!");
+		}
+		cuda_status = cudaMemcpy(gpu_b, cpu_b, malloc_size, cudaMemcpyHostToDevice);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaMemcpy of array a failed!");
+		}
+	}
+	catch (char * err_message) {
+		cout << err_message << endl;
+		goto Error;
+	}
+
+Error:
+	cudaFree(gpu_c);
+	cudaFree(gpu_b);
+	cudaFree(gpu_a);
+}
+
+
+//---------------------------------------------------------------------------
+void cuda_add_arrays(int * c, const int *a, const int *b) {
+
 }
