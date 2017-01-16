@@ -12,6 +12,16 @@ using namespace cv;
 using namespace std;
 
 void Threshold(int threashold, int width, int height, unsigned char * data);
+/*
+void on_trackbar(int, void *) {
+	dim3 grid((image.cols + 1023) / 1024, image.rows);
+	high
+	
+	cuda_threshold << <grid, 1024 >> > (threshold_slider, );
+	cudaDeviceSynchronize();
+
+}
+*/
 
 //global threshold kernel for cuda
 //__global__ void threshold_kernel()
@@ -27,6 +37,17 @@ __global__ void copy_image(const unsigned char* in, unsigned char* out) {
 	out[index + 2] = in[index + 2];
 	out[index + 3] = in[index + 3];
 
+}
+//global threshold for cuda image
+__global__ void cuda_threshold(const int threshold, unsigned char * data) {
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (data[index] > threshold) {
+		data[index] = 255;
+	}
+	else {
+		data[index] = 0;
+	}
 }
 
 int main(int argc, char** argv) {
@@ -46,17 +67,17 @@ int main(int argc, char** argv) {
 	cvtColor(image, image, cv::COLOR_RGB2GRAY);
 
 
-	Threshold(100, image.cols, image.rows, image.data);
+	//Threshold(100, image.cols, image.rows, image.data);
 
-	namedWindow("Display window", WINDOW_NORMAL);
-	imshow("Display window", image);
+	//namedWindow("Display window", WINDOW_NORMAL);
+	//imshow("Display window", image);
 
 	//waitKey(0);
 
 
 	//=============cuda code================
 	//find the size of the image to use later
-	int size = image.cols * image.rows * 4;
+	int size = image.cols * image.rows;
 
 	cudaError cuda_status;
 
@@ -65,6 +86,11 @@ int main(int argc, char** argv) {
 
 
 	try {
+		//choose which GPU to run on, change this on a multi-GPU system.
+		cuda_status = cudaSetDevice(0);
+		if (cuda_status != cudaSuccess) {
+			throw("cudaSetDevice failed!");
+		}
 		//allocate the GPU buffers for the image
 		cuda_status = cudaMalloc((void**)&in, size * sizeof(unsigned char));
 		if (cuda_status != cudaSuccess) {
@@ -76,7 +102,7 @@ int main(int argc, char** argv) {
 		}
 
 		//copy over the image from hos memory to gpu
-		cuda_status = cudaMemcpy(in, image.datastart, size * sizeof(unsigned char), cudaMemcpyHostToDevice);
+		cuda_status = cudaMemcpy(in, image.data, size * sizeof(unsigned char), cudaMemcpyHostToDevice);
 		if (cuda_status != cudaSuccess) {
 			throw("cudaMemcpy failed!");
 		}
@@ -86,17 +112,32 @@ int main(int argc, char** argv) {
 		goto Error;
 	}
 	
-	//call the copy kernel on the GPU with one thread fro each element
+	//call the copy kernel on the GPU with one thread for each element
 	copy_image<<<image.cols, image.rows >>> (in, out);
 
+	//call the cuda threshold kernel on the gpu
+	cuda_threshold<<<image.cols, image.rows>>>(120, out);
 
+	//copy the output vector from the GPU buffer to host memory.
+	cuda_status = cudaMemcpy(image.data, out, size * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	if (cuda_status != cudaSuccess) {
+		cout << "coping the image back did not work" << endl;
+	}
+	
 
+	namedWindow("Display window", WINDOW_NORMAL);
+	imshow("Display window", image);
 
+	waitKey(0);
 
 
 Error:
 	cudaFree(in);
 	cudaFree(out);
+
+
+
+
 	return 0;
 }
 
@@ -112,3 +153,5 @@ void Threshold(int threshold, int width, int height, unsigned char * data) {
 		}
 	}
 }
+
+
