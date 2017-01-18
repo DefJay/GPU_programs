@@ -1,15 +1,21 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
+#include "opencv2/opencv.hpp"
+#include <opencv2/core/cuda.hpp>
+#include "opencv2/core.hpp"
+#include <opencv2/core/utility.hpp>
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include <string>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include "device_launch_parameters.h"
 
-#include "C:/Users/educ/Desktop/GPU_programs/timer_test/high_performance_timer/High_performance_timer.h" 
-using namespace cv;
+#include "..\highperformancetimer\highprecisiontimer.h"
+
 using namespace std;
+using namespace cv;
 
 Mat host_image;
 Mat orig_image;
@@ -143,14 +149,14 @@ void on_trackbar(int, void *)
 		}
 
 		t.TimeSinceLastCall();
-		kernel <<<grid, 1024 >>>(device_src, device_dst, threshold_slider, host_image.cols, host_image.rows);
+		kernel << <grid, 1024 >> >(device_src, device_dst, threshold_slider, host_image.cols, host_image.rows);
 		cudaDeviceSynchronize();
 		gpu_accumulator += t.TimeSinceLastCall();
 		gpu_counter++;
 		cout << "GPU AVG " << setw(12) << fixed << setprecision(8) << gpu_accumulator / ((double)gpu_counter) << " seconds";
-		vignette <<<grid, 1024 >>>(device_dst, device_src, inner, outer, host_image.cols, host_image.rows);
+		vignette << <grid, 1024 >> >(device_dst, device_src, inner, outer, host_image.cols, host_image.rows);
 		cudaDeviceSynchronize();
-
+	
 		t.TimeSinceLastCall();
 		if (cudaMemcpy(host_image.ptr(), device_src, image_bytes, cudaMemcpyDeviceToHost) != cudaSuccess)
 		{

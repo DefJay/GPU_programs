@@ -7,7 +7,8 @@
 #include <iostream>
 #include <iomanip>
 
-#include "C:/Users/educ/Desktop/GPU_programs/timer_test/high_performance_timer/High_performance_timer.h" 
+#include"../high_performance_timer/High_performance_timer.h"
+
 using namespace cv;
 using namespace std;
 
@@ -28,6 +29,8 @@ double cpu_accumulator = 0;
 int cpu_counter = 0;
 bool gpu_mode = true;
 
+typedef unsigned char ubyte;
+
 void Threshold(Mat & image, int t)
 {
 	assert(image.channels() == 1);
@@ -46,6 +49,11 @@ void Threshold(Mat & image, int t)
 		}
 	}
 }
+
+void box_filter(ubyte * s, ubyte * d, int width, int height, ubyte * k, int kw, int kh, ubyte * temp) {
+	
+}
+
 
 __global__ void vignette(const unsigned char * src, unsigned char * dst, float inner, float outer, const size_t width, const size_t height)
 {
@@ -143,12 +151,12 @@ void on_trackbar(int, void *)
 		}
 
 		t.TimeSinceLastCall();
-		kernel <<<grid, 1024 >>>(device_src, device_dst, threshold_slider, host_image.cols, host_image.rows);
+		kernel << <grid, 1024 >> >(device_src, device_dst, threshold_slider, host_image.cols, host_image.rows);
 		cudaDeviceSynchronize();
 		gpu_accumulator += t.TimeSinceLastCall();
 		gpu_counter++;
 		cout << "GPU AVG " << setw(12) << fixed << setprecision(8) << gpu_accumulator / ((double)gpu_counter) << " seconds";
-		vignette <<<grid, 1024 >>>(device_dst, device_src, inner, outer, host_image.cols, host_image.rows);
+		vignette << <grid, 1024 >> >(device_dst, device_src, inner, outer, host_image.cols, host_image.rows);
 		cudaDeviceSynchronize();
 
 		t.TimeSinceLastCall();
