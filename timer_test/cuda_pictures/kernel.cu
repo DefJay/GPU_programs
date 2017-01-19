@@ -7,16 +7,18 @@
 #include <iostream>
 #include <iomanip>
 
-#include"../high_performance_timer/High_performance_timer.h"
+//#include"../high_performance_timer/High_performance_timer.h"
 
 using namespace cv;
 using namespace std;
 
 Mat host_image;
 Mat orig_image;
+Mat temp_image;
+Mat final_image;
 unsigned char * device_src = nullptr;
 unsigned char * device_dst = nullptr;
-HighPrecisionTime t;
+//HighPrecisionTime t;
 size_t image_bytes;
 string window_name("Ouput");
 const int THRESHOLD_SLIDER_MAX = 256;
@@ -30,6 +32,10 @@ int cpu_counter = 0;
 bool gpu_mode = true;
 
 typedef unsigned char ubyte;
+
+//test kernel for box filtering
+ubyte test_kernel[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+
 
 void Threshold(Mat & image, int t)
 {
@@ -50,9 +56,53 @@ void Threshold(Mat & image, int t)
 	}
 }
 
-void box_filter(ubyte * s, ubyte * d, int width, int height, ubyte * k, int kw, int kh, ubyte * temp) {
+void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * kernel, int kw, int kh, ubyte * temp) {
+	int kernel_sum = 0;
+	int sum = 0;
+	//find the sum of all the elements in the kernel
+	for (int i = 0; i < kw; i++) {
+		for (int j = 0; j < kh; j++) {
+			kernel_sum = kernel_sum + kernel[i + j];
+		}
+	}
+	cout << "kernel's total sum: " << kernel_sum << endl;
+
+
+	//if the kernel sum is = 0, assign it to be 1
+	if (kernel_sum == 0) {
+		kernel_sum = 1;
+	}
+
+
+
+	//go through every row and every column of the image
+	for (int x = 0; x < width; x++) {
+		for (int y = 0; y < height; y++) {
+			//reset the sum to 0
+			sum = 0;
+
+			//go through every row & column of the kernel
+			for (int kernel_x = 0; kernel_x < kw; kernel_x++) {
+				for (int kernel_y = 0; kernel_y < kh; kernel_y++) {
+					sum = source[x + y] * kernel[kernel_x + kernel_y];
+					cout << "source: " << source[x + y] << "     kernel: " << kernel[kernel_x + kernel_y];
+					
+				}
+			}
+			temp[x + y] = sum;
+
+		}
+	}
+	
+
+	//assign the new values
+	for (int i = 0; i < (width * height); i++) {
+		dest[i] = temp[i];
+	}
 	
 }
+
+
 
 
 __global__ void vignette(const unsigned char * src, unsigned char * dst, float inner, float outer, const size_t width, const size_t height)
@@ -140,7 +190,7 @@ void on_trackbar(int, void *)
 	}
 	float inner = i / 100.0f;
 	float outer = o / 100.0f;
-
+	/*
 	if (gpu_mode)
 	{
 		if (cudaMemcpy(device_src, orig_image.ptr(), image_bytes, cudaMemcpyHostToDevice) != cudaSuccess)
@@ -177,6 +227,10 @@ void on_trackbar(int, void *)
 		cout << "CPU AVG " << setw(12) << fixed << setprecision(8) << cpu_accumulator / ((double)cpu_counter) << " seconds";
 		cout << endl;
 	}
+	*/
+
+
+
 	imshow(window_name, host_image);
 }
 
@@ -200,6 +254,7 @@ int main(int argc, char * argv[])
 	host_image.copyTo(orig_image);
 	cout << "Converted to gray." << endl;
 
+	/*
 	if (cudaSetDevice(0) != cudaSuccess)
 	{
 		cerr << "cudaSetDevice(0) failed." << endl;
@@ -225,13 +280,36 @@ int main(int argc, char * argv[])
 		cudaDeviceReset();
 		exit(1);
 	}
+	*/
+	//namedWindow(window_name, WINDOW_KEEPRATIO);
+	//resizeWindow(window_name, host_image.cols / 10, host_image.rows / 10);
+	//createTrackbar("Threshold", window_name, &threshold_slider, THRESHOLD_SLIDER_MAX, on_trackbar);
+	//createTrackbar("Inner", window_name, &inner_slider, 100, on_trackbar);
+	//createTrackbar("Outer", window_name, &outer_slider, 100, on_trackbar);
+	//on_trackbar(threshold_slider, 0);
 
-	namedWindow(window_name, WINDOW_KEEPRATIO);
-	resizeWindow(window_name, host_image.cols / 10, host_image.rows / 10);
-	createTrackbar("Threshold", window_name, &threshold_slider, THRESHOLD_SLIDER_MAX, on_trackbar);
-	createTrackbar("Inner", window_name, &inner_slider, 100, on_trackbar);
-	createTrackbar("Outer", window_name, &outer_slider, 100, on_trackbar);
-	on_trackbar(threshold_slider, 0);
+	//copy over the host image to the final image & temp image
+	final_image = host_image;
+	temp_image = host_image;
+
+	namedWindow("ORIGIONAL IMAGE", WINDOW_KEEPRATIO);
+	resizeWindow("ORIGIONAL IMAGE", host_image.cols / 3, host_image.rows / 3);
+	imshow("ORIGIONAL IMAGE", host_image);
+	waitKey(0);
+
+	box_filter(host_image.data, final_image.data, host_image.cols, host_image.rows, test_kernel, 3, 3, temp_image.data);
+
+	
+	namedWindow("FINAL IMAGE", WINDOW_KEEPRATIO);
+	resizeWindow("FINAL IMAGE", host_image.cols / 3, host_image.rows / 3);
+	imshow("FINAL IMAGE", final_image);
+	waitKey(0);
+
+
+
+
+
+
 
 	int k;
 
