@@ -84,12 +84,11 @@ void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * ker
 			//go through every row & column of the kernel
 			for (int kernel_x = 0; kernel_x < kw; kernel_x++) {
 				for (int kernel_y = 0; kernel_y < kh; kernel_y++) {
-					sum = source[x + y] * kernel[kernel_x + kernel_y];
-					cout << "source: " << source[x + y] << "     kernel: " << kernel[kernel_x + kernel_y];
+					
 					
 				}
 			}
-			temp[x + y] = sum;
+			
 
 		}
 	}
