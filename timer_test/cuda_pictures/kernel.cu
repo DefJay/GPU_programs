@@ -36,6 +36,10 @@ typedef unsigned char ubyte;
 //test kernel for box filtering
 ubyte test_kernel[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
+int one_deminsional(int x, int y, int width) {
+	return (x + y * width);
+}
+
 
 void Threshold(Mat & image, int t)
 {
@@ -67,14 +71,40 @@ void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * ker
 	}
 	cout << "kernel's total sum: " << kernel_sum << endl;
 
+	//clone the origional image's data to the temp and dest
+	temp = source;
+	dest = source;
+
 
 	//if the kernel sum is = 0, assign it to be 1
 	if (kernel_sum == 0) {
 		kernel_sum = 1;
 	}
 
+	//bluring for a 3x3 matrix
+	for (int y = 1; y < height - 1; y++) {
+		for (int x = 1; x < width - 1; x++) {
+			ubyte new_val = source[one_deminsional(x - 1, y - 1, width)] * kernel[0];
+			new_val += source[one_deminsional(x , y - 1, width)] * kernel[1];
+			new_val += source[one_deminsional(x + 1, y - 1, width)] * kernel[2];
+			new_val += source[one_deminsional(x - 1 , y, width)] * kernel[3];
+			new_val += source[one_deminsional(x, y, width)] * kernel[4];
+			new_val += source[one_deminsional(x + 1, y, width)] * kernel[5];
+			new_val += source[one_deminsional(x - 1, y + 1, width)] * kernel[6];
+			new_val += source[one_deminsional(x, y + 1, width)] * kernel[7];
+			new_val += source[one_deminsional(x + 1, y + 1, width)] * kernel[8];
+
+			new_val = new_val / kernel_sum;
+
+			temp[one_deminsional(x, y, width)] = new_val;
+
+		}
+
+		dest = temp;
+	}
 
 
+	/*
 	//go through every row and every column of the image
 	for (int x = 0; x < width; x++) {
 		for (int y = 0; y < height; y++) {
@@ -98,7 +128,7 @@ void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * ker
 	for (int i = 0; i < (width * height); i++) {
 		dest[i] = temp[i];
 	}
-	
+	*/
 }
 
 
