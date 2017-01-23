@@ -25,6 +25,7 @@ const int THRESHOLD_SLIDER_MAX = 256;
 int threshold_slider = 0;
 int inner_slider = 0;
 int outer_slider = 100;
+int blur_slider = 0;
 double gpu_accumulator = 0;
 int gpu_counter = 0;
 double cpu_accumulator = 0;
@@ -60,78 +61,51 @@ void Threshold(Mat & image, int t)
 	}
 }
 
-void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * kernel, int kw, int kh, ubyte * temp) {
-	int kernel_sum = 0;
-	int sum = 0;
-	//find the sum of all the elements in the kernel
-	for (int i = 0; i < kw; i++) {
-		for (int j = 0; j < kh; j++) {
-			kernel_sum = kernel_sum + kernel[i + j];
-		}
-	}
-	cout << "kernel's total sum: " << kernel_sum << endl;
+void box_filter(ubyte * source, ubyte * dest, int width, int height, ubyte * kernel, int kw, int kh) {
+/*
+	//walk through the y position in the image 
+	for (int y = 0; y < height; y++) {
+		//walks through every x position in the image
+		for (int x = 0; x < width; x++) {
+			//reset the sum for the pixel we are currently working on to be 0
+			int sum = 0;
 
-	//clone the origional image's data to the temp and dest
-	temp = source;
-	dest = source;
+			//points to the middle element of the row of the kernel
+			//used to walk through each row of the kernel
+			ubyte * kernel_p = kernel + half_kernel_size;
 
-
-	//if the kernel sum is = 0, assign it to be 1
-	if (kernel_sum == 0) {
-		kernel_sum = 1;
-	}
-
-	//bluring for a 3x3 matrix
-	for (int y = 1; y < height - 1; y++) {
-		for (int x = 1; x < width - 1; x++) {
-			ubyte new_val = source[one_deminsional(x - 1, y - 1, width)] * kernel[0];
-			new_val += source[one_deminsional(x , y - 1, width)] * kernel[1];
-			new_val += source[one_deminsional(x + 1, y - 1, width)] * kernel[2];
-			new_val += source[one_deminsional(x - 1 , y, width)] * kernel[3];
-			new_val += source[one_deminsional(x, y, width)] * kernel[4];
-			new_val += source[one_deminsional(x + 1, y, width)] * kernel[5];
-			new_val += source[one_deminsional(x - 1, y + 1, width)] * kernel[6];
-			new_val += source[one_deminsional(x, y + 1, width)] * kernel[7];
-			new_val += source[one_deminsional(x + 1, y + 1, width)] * kernel[8];
-
-			new_val = new_val / kernel_sum;
-
-			temp[one_deminsional(x, y, width)] = new_val;
-
-		}
-
-		dest = temp;
-	}
-
-
-	/*
-	//go through every row and every column of the image
-	for (int x = 0; x < width; x++) {
-		for (int y = 0; y < height; y++) {
-			//reset the sum to 0
-			sum = 0;
-
-			//go through every row & column of the kernel
-			for (int kernel_x = 0; kernel_x < kw; kernel_x++) {
-				for (int kernel_y = 0; kernel_y < kh; kernel_y++) {
-					
-					
+			//walk through the rows of the kernel
+			for (int y_offset = -half_kernel_size; y_offset <= half_kernel_size; y_offset++, kernel_p += kernel_size) {
+				//checks for the sides of the image
+				if (y_offset + y < 0 || y_offset + y >= height) {
+					continue;
 				}
+
+				//finds the value of the middle elements of the row
+				sum += *(src + (y_offset + y) * width + x) * *kernel_p;
+
+				//goes through the current row and finds the sums for the x values
+				//to the side of the middle element of the row that kernel_p points to
+				for (int offset_x = 1; offset_x <= half_kernel_size; offset_x++) {
+					if (x - offset_x >= 0) {
+						sum += *(src + (y_offset + y) * width - offset_x + x) * *(kernel_p - offset_x);
+					}
+					if (x + offset_x < width) {
+						sum += *(src + (y_offset + y) * width + offset_x + x) * *(kernel_p + offset_x);
+					}
+
+					//assign the new values to the destination picture
+					*(dest + y * width + x) = ubyte(float(sum) / kernel_sum);
+				}
+
 			}
-			
-
 		}
-	}
-	
-
-	//assign the new values
-	for (int i = 0; i < (width * height); i++) {
-		dest[i] = temp[i];
 	}
 	*/
 }
 
-
+__constant__ int gpu_kernel_size;
+__constant__ ubyte gpu_kernel;
 
 
 __global__ void vignette(const unsigned char * src, unsigned char * dst, float inner, float outer, const size_t width, const size_t height)
@@ -202,6 +176,72 @@ __global__ void kernel(const unsigned char * src, unsigned char * dst, int level
 	}
 }
 
+__global__ void box_filter_kernel(ubyte * src, ubyte * dest, int width, int height, ubyte * kernel, int kw, int kh) {
+	//NOTE
+	//NOTE	This assumes that we are working with a kernel that is a square and
+	//NOTE	it has odd demensions (ex. 3x3)
+	//NOTE 
+	//grab the x and y values for the image on the gpu
+	size_t x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	size_t y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int kernel_size, half_kernel_size;
+	kernel_size = kw * kh;
+	half_kernel_size = kernel_size / 2;
+	float kernel_sum;
+
+	//get the total sum of the kernel to be used later as the divisor
+	for (int i = 0; i < (kw * kh); i++) {
+		kernel_sum += kernel[i];
+	}
+	//if the kernel sum is = 0, then assign it to be 1
+	if (kernel_sum == 0) {
+		kernel_sum = 1;
+	}
+	
+	//check to see if the indexs are within the bounds of the image
+	if (x_index < width && y_index < height) {
+		//offset represents the position of the current pixel in the one dimensional array
+		size_t offset = y_index * width + x_index;
+
+		//reset the sum for the pixel we are currently working on to be 0
+		int sum = 0;
+
+		//points to the middle element of the row of the kernel
+		//used to walk through each row of the kernel
+		ubyte * kernel_p = kernel + half_kernel_size;
+
+		//walk through the rows of the kernel
+		for (int y_offset = -half_kernel_size; y_offset <= half_kernel_size; y_offset++, kernel_p += kernel_size) {
+			//checks for the sides of the image
+			if (y_offset + y_index < 0 || y_offset + y_index >= height) {
+				continue;
+			}
+
+			//finds the value of the middle elements of the row
+			sum += *(src + (y_offset + y_index) * width + x_index) * *kernel_p;
+
+			//goes through the current row and finds the sums for the x values
+			//to the side of the middle element of the row that kernel_p points to
+			for (int offset_x = 1; offset_x <= half_kernel_size; offset_x++) {
+				if (x_index - offset_x >= 0) {
+					sum += *(src + (y_offset + y_index) * width - offset_x + x_index) * *(kernel_p - offset_x);
+				}
+				if (x_index + offset_x < width) {
+					sum += *(src + (y_offset + y_index) * width + offset_x + x_index) * *(kernel_p + offset_x);
+				}
+
+				//assign the new values to the destination picture
+				*(dest + y_index * width + x_index) = ubyte(float(sum) / kernel_sum);
+			}
+
+		}
+
+	}
+
+
+}
+
+
 void on_trackbar(int, void *)
 {
 	dim3 grid((host_image.cols + 1023) / 1024, host_image.rows);
@@ -219,7 +259,7 @@ void on_trackbar(int, void *)
 	}
 	float inner = i / 100.0f;
 	float outer = o / 100.0f;
-	/*
+	
 	if (gpu_mode)
 	{
 		if (cudaMemcpy(device_src, orig_image.ptr(), image_bytes, cudaMemcpyHostToDevice) != cudaSuccess)
@@ -228,35 +268,15 @@ void on_trackbar(int, void *)
 			cudaDeviceReset();
 			exit(1);
 		}
-
-		t.TimeSinceLastCall();
-		kernel << <grid, 1024 >> >(device_src, device_dst, threshold_slider, host_image.cols, host_image.rows);
-		cudaDeviceSynchronize();
-		gpu_accumulator += t.TimeSinceLastCall();
-		gpu_counter++;
-		cout << "GPU AVG " << setw(12) << fixed << setprecision(8) << gpu_accumulator / ((double)gpu_counter) << " seconds";
-		vignette << <grid, 1024 >> >(device_dst, device_src, inner, outer, host_image.cols, host_image.rows);
-		cudaDeviceSynchronize();
-
-		t.TimeSinceLastCall();
-		if (cudaMemcpy(host_image.ptr(), device_src, image_bytes, cudaMemcpyDeviceToHost) != cudaSuccess)
-		{
-			cerr << "cudaMemcpy failed at " << __LINE__ << endl;
-		}
-		d = t.TimeSinceLastCall();
-		cout << " XFER: " << setw(8) << setprecision(4) << ((double)image_bytes) / (d * 1024.0 * 1024.0 * 1024.0) << " GB/s" << endl;
 	}
 	else
 	{
-		t.TimeSinceLastCall();
 		host_image = orig_image;
 		Threshold(host_image, threshold_slider);
-		cpu_accumulator += t.TimeSinceLastCall();
-		cpu_counter++;
 		cout << "CPU AVG " << setw(12) << fixed << setprecision(8) << cpu_accumulator / ((double)cpu_counter) << " seconds";
 		cout << endl;
 	}
-	*/
+
 
 
 
@@ -265,12 +285,17 @@ void on_trackbar(int, void *)
 
 int main(int argc, char * argv[])
 {
+	//checks to see if there is a second argument
 	if (argc != 2)
 	{
 		cout << " Usage: display_image ImageToLoadAndDisplay" << endl;
 		return -1;
 	}
+
+	//reads in the image
 	host_image = imread(argv[1], CV_LOAD_IMAGE_COLOR);
+
+	//checks to see if the image doesn't have any data
 	if (!host_image.data)
 	{
 		cout << "Could not open or find the image" << std::endl;
@@ -279,20 +304,27 @@ int main(int argc, char * argv[])
 	cout << "Image has: " << host_image.channels() << " channels." << endl;
 	cout << "Image has size: " << host_image.cols << " x " << host_image.rows << " pixels." << endl;
 
+	//converts the image to grey
 	cvtColor(host_image, host_image, cv::COLOR_RGB2GRAY);
+	//copys oover the host image to the origional image
 	host_image.copyTo(orig_image);
 	cout << "Converted to gray." << endl;
 
-	/*
+	//sets the cuda device to the first one and checks to make sure it worked
 	if (cudaSetDevice(0) != cudaSuccess)
 	{
 		cerr << "cudaSetDevice(0) failed." << endl;
 		cudaDeviceReset();
 		exit(1);
 	}
+
+	//gets the total amount of bytes in the image
 	image_bytes = host_image.rows * host_image.cols;
+
+	//mallocs space on the gpu for the source and destination images
 	cudaMalloc(&device_src, image_bytes);
 	cudaMalloc(&device_dst, image_bytes);
+	//checks to make sure that the memory was allocated correctly
 	if (device_dst == nullptr || device_src == nullptr)
 	{
 		cerr << "cudaMalloc failed on either device_src or device_dst at " << __LINE__ << endl;
@@ -309,35 +341,11 @@ int main(int argc, char * argv[])
 		cudaDeviceReset();
 		exit(1);
 	}
-	*/
-	//namedWindow(window_name, WINDOW_KEEPRATIO);
-	//resizeWindow(window_name, host_image.cols / 10, host_image.rows / 10);
-	//createTrackbar("Threshold", window_name, &threshold_slider, THRESHOLD_SLIDER_MAX, on_trackbar);
-	//createTrackbar("Inner", window_name, &inner_slider, 100, on_trackbar);
-	//createTrackbar("Outer", window_name, &outer_slider, 100, on_trackbar);
-	//on_trackbar(threshold_slider, 0);
 
-	//copy over the host image to the final image & temp image
-	final_image = host_image;
-	temp_image = host_image;
-
-	namedWindow("ORIGIONAL IMAGE", WINDOW_KEEPRATIO);
-	resizeWindow("ORIGIONAL IMAGE", host_image.cols / 3, host_image.rows / 3);
-	imshow("ORIGIONAL IMAGE", host_image);
-	waitKey(0);
-
-	box_filter(host_image.data, final_image.data, host_image.cols, host_image.rows, test_kernel, 3, 3, temp_image.data);
-
-	
-	namedWindow("FINAL IMAGE", WINDOW_KEEPRATIO);
-	resizeWindow("FINAL IMAGE", host_image.cols / 3, host_image.rows / 3);
-	imshow("FINAL IMAGE", final_image);
-	waitKey(0);
-
-
-
-
-
+	namedWindow(window_name, WINDOW_KEEPRATIO);
+	resizeWindow(window_name, host_image.cols / 3, host_image.rows / 3);
+	createTrackbar("kernel size", window_name, &blur_slider, THRESHOLD_SLIDER_MAX, on_trackbar);
+	on_trackbar(blur_slider, 0);
 
 
 	int k;
