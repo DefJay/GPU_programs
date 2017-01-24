@@ -182,11 +182,13 @@ __global__ void box_filter_kernel(ubyte * src, ubyte * dest, int width, int heig
 	//NOTE	it has odd demensions (ex. 3x3)
 	//NOTE 
 	//grab the x and y values for the image on the gpu
-	size_t x_index = blockIdx.x * blockDim.x + threadIdx.x;
-	size_t y_index = blockIdx.y * blockDim.y + threadIdx.y;
-	int kernel_size, half_kernel_size;
+	int x_index = blockIdx.x * blockDim.x + threadIdx.x;
+	int y_index = blockIdx.y * blockDim.y + threadIdx.y;
+	int kernel_size;
+	
+
 	kernel_size = kw * kh;
-	half_kernel_size = kernel_size / 2;
+	const int half_kernel_size = kernel_size / 2;
 	float kernel_sum;
 
 	//get the total sum of the kernel to be used later as the divisor
@@ -197,6 +199,7 @@ __global__ void box_filter_kernel(ubyte * src, ubyte * dest, int width, int heig
 	if (kernel_sum == 0) {
 		kernel_sum = 1;
 	}
+
 	
 	//check to see if the indexs are within the bounds of the image
 	if (x_index < width && y_index < height) {
@@ -237,8 +240,6 @@ __global__ void box_filter_kernel(ubyte * src, ubyte * dest, int width, int heig
 		}
 
 	}
-
-
 }
 
 
@@ -342,10 +343,21 @@ int main(int argc, char * argv[])
 		exit(1);
 	}
 
+	/* for the cpu
 	namedWindow(window_name, WINDOW_KEEPRATIO);
 	resizeWindow(window_name, host_image.cols / 3, host_image.rows / 3);
 	createTrackbar("kernel size", window_name, &blur_slider, THRESHOLD_SLIDER_MAX, on_trackbar);
 	on_trackbar(blur_slider, 0);
+	*/
+
+	box_filter_kernel << < 1, 1024 >> > (device_src, device_dst, orig_image.cols, orig_image.rows, test_kernel, 3, 3);
+
+	if (cudaMemcpy( final_image.data, device_src, image_bytes, cudaMemcpyDeviceToHost) != cudaSuccess) {
+		cerr << "cudaMemcpy failed at " << __LINE__ << endl;
+	}
+
+	namedWindow(window_name, WINDOW_KEEPRATIO);
+	imshow(window_name, final_image);
 
 
 	int k;
